@@ -20,7 +20,7 @@
 import logging
 import sleekxmpp.sleekxmpp as sleekxmpp
 from optparse import OptionParser
-from xml.etree import ElementTree as ET
+#from xml.etree import Element
 import os
 import time
 import csv
@@ -32,6 +32,16 @@ class Account(object):
         self.password = password
         self.rosterEntries = []
         
+    def host(self):
+        return self.splitJid()[1]
+        
+    def user(self):
+        return self.splitJid()[0]
+        
+    def splitJid(self):
+        return self.jid.split("@")
+    
+        
 class RosterEntry(object):
     def __init__(self, jid, groups, name, subscription):
         self.jid = jid
@@ -42,7 +52,6 @@ class RosterEntry(object):
 class TigaseCSVExporter(object):
     def __init__(self, fileName):
         self.out = file(fileName, "w")
-        pass
         
     def export(self, user):
         logging.info("Exporting account " + user.jid)
@@ -53,6 +62,31 @@ class TigaseCSVExporter(object):
                 self.out.write("%s,%s,%s,%s,%s,%s\n" % (user.jid, user.password, rosterEntry.jid, rosterEntry.name, rosterEntry.subscription, group))
         
     def finalise(self):
+        self.out.close()
+
+class XEP0227Exporter(object):
+    def __init__(self, fileName, host):
+        logging.warning("STUPID STRINGS - MAKE REAL XML")
+        self.out = file(fileName, "w")
+        self.out.write(u"""<?xml version='1.0' encoding='UTF-8'?>
+<server-data xmlns='http://www.xmpp.org/extensions/xep-0227.html#ns'>
+        """)
+        self.out.write(u"<host jid='%s'>\n" % host)
+        
+    def export(self, user):
+        logging.info("Exporting account " + user.jid)
+        self.out.write(u"<user name='%s' password='%s'><query xmlns='jabber:iq:roster'>" % (user.user(), user.password))
+        
+        for rosterEntry in user.rosterEntries:
+            self.out.write(u"<item jid='%s' name='%s' subscription='%s'>" % (rosterEntry.jid, rosterEntry.name, rosterEntry.subscription))
+            for group in rosterEntry.groups:
+                if group is not None:
+                    self.out.write(u"<group>%s</group>" %group)
+            self.out.write(u"</item>")
+        self.out.write(u"</query></user>") 
+        
+    def finalise(self):
+        self.out.write(u"</host></server-data>")
         self.out.close()
 
 class XMPPAccountExtractor(sleekxmpp.xmppclient):
@@ -118,9 +152,8 @@ if __name__ == '__main__':
 	
 	
     plugin_config = {}
-    #plugin_config['xep_0092'] = {'name': 'SleekXMPP Example', 'version': '0.1-dev'}
-    #plugin_config['xep_0199'] = {'keepalive': True, 'timeout': 30, 'frequency': 300}
-    exporter = TigaseCSVExporter('out.txt')
+    #exporter = TigaseCSVExporter('out.txt')
+    exporter = XEP0227Exporter('227.xml','doomsong.co.uk')
 	
     for auth in authDetails:
         extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])

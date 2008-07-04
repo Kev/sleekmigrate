@@ -24,6 +24,7 @@ from xml.etree import ElementTree as ET
 import os
 import time
 import csv
+import codecs
 
 class Account(object):
     def __init__(self, jid, password):
@@ -40,14 +41,19 @@ class RosterEntry(object):
 
 class TigaseCSVExporter(object):
     def __init__(self, fileName):
-        self.out = file(fileName, 'w')
+        self.out = file(fileName, "w")
         pass
         
     def export(self, user):
         logging.info("Exporting account " + user.jid)
+        for rosterEntry in user.rosterEntries:
+            if len(rosterEntry.groups) == 0 or (len(rosterEntry.groups) == 1 and rosterEntry.groups[0] is None):
+                rosterEntry.groups = ("")
+            for group in rosterEntry.groups:
+                self.out.write("%s,%s,%s,%s,%s,%s\n" % (user.jid, user.password, rosterEntry.jid, rosterEntry.name, rosterEntry.subscription, group))
         
     def finalise(self):
-        pass
+        self.out.close()
 
 class XMPPAccountExtractor(sleekxmpp.xmppclient):
     def __init__(self, jid, password, ssl=False, plugin_config = {}, plugin_whitelist=[]):
@@ -113,7 +119,7 @@ if __name__ == '__main__':
     plugin_config = {}
     #plugin_config['xep_0092'] = {'name': 'SleekXMPP Example', 'version': '0.1-dev'}
     #plugin_config['xep_0199'] = {'keepalive': True, 'timeout': 30, 'frequency': 300}
-    exporter = TigaseCSVExporter()
+    exporter = TigaseCSVExporter('out.txt')
 	
     for auth in authDetails:
         extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])

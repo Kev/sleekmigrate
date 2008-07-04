@@ -47,7 +47,7 @@ class TigaseCSVExporter(object):
     def export(self, user):
         logging.info("Exporting account " + user.jid)
         for rosterEntry in user.rosterEntries:
-            if len(rosterEntry.groups) == 0 or (len(rosterEntry.groups) == 1 and rosterEntry.groups[0] is None):
+            if len(rosterEntry.groups) == 0:
                 rosterEntry.groups = ("")
             for group in rosterEntry.groups:
                 self.out.write("%s,%s,%s,%s,%s,%s\n" % (user.jid, user.password, rosterEntry.jid, rosterEntry.name, rosterEntry.subscription, group))
@@ -89,6 +89,7 @@ class XMPPAccountExtractor(sleekxmpp.xmppclient):
 def authDetailsFromFile(filename):
     """ Return a list of auth dicts
     """
+    logging.warn("The import method isn't unicode-safe, yet")
     reader = csv.reader(open(filename, "rb"))
     auths = []
     for row in reader:

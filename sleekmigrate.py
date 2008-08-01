@@ -1,26 +1,27 @@
 #!/usr/bin/python2.5
 """
-    This file is part of SleekXMPP.
+    This file is part of SleekMigrate.
 
-    SleekXMPP is free software; you can redistribute it and/or modify
+    SleekMigrate is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
 
-    SleekXMPP is distributed in the hope that it will be useful,
+    SleekMigrate is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with SleekXMPP; if not, write to the Free Software
+    along with SleekMigrate; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
 import logging
 import sleekxmpp.sleekxmpp as sleekxmpp
 from optparse import OptionParser
-#from xml.etree import Element
+from xml.etree import ElementTree as ET
+
 import os
 import time
 import csv
@@ -70,28 +71,34 @@ class TigaseCSVExporter(object):
 
 class XEP0227Exporter(object):
     def __init__(self, fileName, host):
-        logging.warning("STUPID STRINGS - MAKE REAL XML")
-        self.out = file(fileName, "w")
-        self.out.write(u"""<?xml version='1.0' encoding='UTF-8'?>
-<server-data xmlns='http://www.xmpp.org/extensions/xep-0227.html#ns'>
-        """)
-        self.out.write(u"<host jid='%s'>\n" % host)
+        self.fileName = fileName
+        self.element = ET.Element('{http://www.xmpp.org/extensions/xep-0227.html#ns}server-data')
+        hostElement = ET.Element('host')
+        hostElement.set('jid', host)
+        self.element.append(hostElement)
         
     def export(self, user):
         logging.info("Exporting account " + user.jid)
-        self.out.write(u"<user name='%s' password='%s'><query xmlns='jabber:iq:roster'>" % (user.user(), user.password))
-        
+        userElement = ET.Element('user')
+        userElement.set('name', user.user())
+        userElement.set('password', user.password)
+        rosterElement = ET.Element('{jabber:iq:roster}query')
         for rosterEntry in user.rosterEntries:
-            self.out.write(u"<item jid='%s' name='%s' subscription='%s'>" % (rosterEntry.jid, rosterEntry.name, rosterEntry.subscription))
+            itemElement = ET.Element('item')
+            itemElement.set('jid', rosterEntry.jid)
+            itemElement.set('name', rosterEntry.name)
+            itemElement.set('subscription', rosterEntry.subscription)
             for group in rosterEntry.groups:
                 if group is not None:
-                    self.out.write(u"<group>%s</group>" %group)
-            self.out.write(u"</item>")
-        self.out.write(u"</query></user>") 
+                    groupElement = ET.Element('group')
+                    groupElement.text = group
+                    itemElement.append(groupElement)
+            rosterElement.append(itemElement)
+        userElement.append(rosterElement)
+        self.element.append(userElement)
         
     def finalise(self):
-        self.out.write(u"</host></server-data>")
-        self.out.close()
+        ET.ElementTree(self.element).write(self.fileName)
 
 class XMPPAccountExtractor(sleekxmpp.xmppclient):
     def __init__(self, jid, password, ssl=False, plugin_config = {}, plugin_whitelist=[]):

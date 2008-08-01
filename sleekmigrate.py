@@ -148,7 +148,7 @@ if __name__ == '__main__':
     optp.add_option('-d','--debug', help='set logging to DEBUG', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO)
     optp.add_option('-v','--verbose', help='set logging to COMM', action='store_const', dest='loglevel', const=5, default=logging.INFO)
     optp.add_option("-e","--export-formatter", dest="exportFormatter",  type='choice', default="xep0227", choices=("xep0227","tigase"), help="formatter for exported data")
-    optp.add_option('-s','--server', help='override connection server', dest='hostname', default=None)
+    optp.add_option('-s','--server', help='domain to export', dest='hostname', default=None)
     #optp.add_option("-c","--config", dest="configfile", default="config.xml", help="set config file to use")
     optp.add_option("-f","--user-file", dest="userFile", default="users.csv", help="name of CSV uname/password pairs file")
     opts,args = optp.parse_args()
@@ -158,10 +158,6 @@ if __name__ == '__main__':
     logging.info("Loading user file: %s" % opts.userFile)
     authDetails = authDetailsFromFile(opts.userFile)
 
-	
-
-	
-	
     plugin_config = {}
     exporterType = opts.exportFormatter
     if exporterType == "xep0227":

@@ -118,8 +118,10 @@ class XMPPAccountExtractor(sleekxmpp.xmppclient):
         self.account = Account(jid, password)
         self.rosterDone = False
         self.vcardDone = False
+        self.sessionOkay = False
 	
     def start(self, event):
+        self.sessionOkay = True
         self.requestRoster()
         #self.requestVcard(self.jid)
         while not self.vcardDone and not self.rosterDone:
@@ -135,6 +137,9 @@ class XMPPAccountExtractor(sleekxmpp.xmppclient):
         pass
         #print event
         #self.vcardDone = True
+    
+    def export_okay(self):
+        return self.sessionOkay
         
     def getAccount(self):
         return self.account
@@ -184,5 +189,6 @@ if __name__ == '__main__':
         extractor.process()
         while extractor.connected:
             time.sleep(1)
-        exporter.export(extractor.getAccount())
+        if extractor.export_okay():
+            exporter.export(extractor.getAccount())
     exporter.finalise()

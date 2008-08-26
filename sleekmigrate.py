@@ -93,7 +93,8 @@ class XEP0227Exporter(object):
         for rosterEntry in user.rosterEntries:
             itemElement = ET.Element('item')
             itemElement.set('jid', rosterEntry.jid)
-            itemElement.set('name', rosterEntry.name)
+            if rosterEntry.name:
+                itemElement.set('name', rosterEntry.name)
             itemElement.set('subscription', rosterEntry.subscription)
             for group in rosterEntry.groups:
                 if group is not None:

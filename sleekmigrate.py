@@ -70,12 +70,19 @@ class TigaseCSVExporter(object):
         self.out.close()
 
 class XEP0227Exporter(object):
-    def __init__(self, fileName, host):
+    def __init__(self, fileName):
         self.fileName = fileName
         self.element = ET.Element('{http://www.xmpp.org/extensions/xep-0227.html#ns}server-data')
-        hostElement = ET.Element('host')
-        hostElement.set('jid', host)
-        self.element.append(hostElement)
+        self.hostElements = {}
+        
+    def elementForHost(self, host):
+        hostElement = self.hostElements.get(host, None)
+        if hostElement is None:
+            hostElement = ET.Element('host')
+            hostElement.set('jid', host)
+            self.hostElements[host] = hostElement
+            self.element.append(hostElement)
+        return hostElement
         
     def export(self, user):
         logging.info("Exporting account " + user.jid)
@@ -95,7 +102,7 @@ class XEP0227Exporter(object):
                     itemElement.append(groupElement)
             rosterElement.append(itemElement)
         userElement.append(rosterElement)
-        self.element.append(userElement)
+        self.elementForHost(user.host()).append(userElement)
         
     def finalise(self):
         ET.ElementTree(self.element).write(self.fileName)
@@ -161,7 +168,7 @@ if __name__ == '__main__':
     plugin_config = {}
     exporterType = opts.exportFormatter
     if exporterType == "xep0227":
-        exporter =  XEP0227Exporter('227.xml', opts.hostname)
+        exporter =  XEP0227Exporter('227.xml')
     elif exporterType == "tigase":
         exporter = TigaseCSVExporter('out.txt')
     else:

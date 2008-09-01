@@ -20,7 +20,7 @@
 import logging
 import sleekxmpp.sleekxmpp as sleekxmpp
 from optparse import OptionParser
-from xml.etree import ElementTree as ET
+from xml.etree import cElementTree as ET
 
 import os
 import time
@@ -41,6 +41,12 @@ class Account(object):
         
     def splitJid(self):
         return self.jid.split("@")
+        
+    def getVcardElement(self):
+        return self.vcardElement
+    
+    def getPrivateElements(self):
+        return self.privateElements
     
         
 class RosterEntry(object):
@@ -103,6 +109,14 @@ class XEP0227Exporter(object):
                     itemElement.append(groupElement)
             rosterElement.append(itemElement)
         userElement.append(rosterElement)
+        if user.vcardElement is not None:
+            userElement.append(user.vcardElement)
+        if len(user.privateElements) > 0:
+            privateElement = ET.Element('{jabber:iq:private}query')
+            for privateSubElement in user.privateElements:
+                privateElement.append(privateSubElement)
+            userElement.append(privateElement)
+        
         self.elementForHost(user.host()).append(userElement)
         
     def finalise(self):
@@ -114,29 +128,60 @@ class XMPPAccountExtractor(sleekxmpp.xmppclient):
         logging.info("Logging in as %s" % self.jid)
         self.add_event_handler("session_start", self.start, threaded=True)
         self.add_event_handler("roster_update", self.receive_roster)
-        self.add_event_handler("vcard_result", self.receive_vcard)
         self.account = Account(jid, password)
         self.rosterDone = False
         self.vcardDone = False
+        self.privatesDone = False
         self.sessionOkay = False
+        self.timeout = 30
+        self.privatesToRequest = ("{exodus:prefs}exodus","{storage:bookmarks}storage", "{storage:rosternotes}storage", "{storage:metacontacts}storage")
 	
     def start(self, event):
         self.sessionOkay = True
         self.requestRoster()
-        #self.requestVcard(self.jid)
-        while not self.vcardDone and not self.rosterDone:
+        
+        while not self.vcardDone or not self.rosterDone or not self.privatesDone:
             time.sleep(1)
         self.disconnect()
 	
+
+		
+    def fetch_privates(self):
+        self.account.privateElements = []
+        for privateToRequest in self.privatesToRequest:
+            id = self.getNewId()
+            iq = self.makeIq(id)
+            iq.attrib['type'] = "get"
+            iqRequestElement = ET.Element("{jabber:iq:private}query")
+            iq.append(iqRequestElement)
+            iqRequestElement.append(ET.Element(privateToRequest))
+            iqResult = self.send(iq, self.makeIq(id), self.timeout)
+            if iqResult is not None:
+                midResult = iqResult.find("{jabber:iq:private}query")
+                if midResult is not None:
+                    result = midResult.find(privateToRequest)
+                    if result is not None:
+                        self.account.privateElements.append(result)
+        self.privatesDone = True
+
+    def fetch_vcard(self):
+        id = self.getNewId()
+        iq = self.makeIq(id)
+        iq.attrib['type'] = "get"
+        vcardRequestElement = ET.Element("{vcard-temp}vCard")
+        iq.append(vcardRequestElement)
+        vcardResult = self.send(iq, self.makeIq(id), self.timeout)
+        self.account.vcardElement = vcardResult.find("{vcard-temp}vCard")
+        self.vcardDone = True
+        self.fetch_privates()
+
+			
+
     def receive_roster(self, event):
         for jid in event:
             self.account.rosterEntries.append(RosterEntry(jid, event[jid]['groups'], event[jid]['name'], event[jid]['subscription']))
         self.rosterDone = True
-			
-    def receive_vcard(self, event):
-        pass
-        #print event
-        #self.vcardDone = True
+        self.fetch_vcard()
     
     def export_okay(self):
         return self.sessionOkay

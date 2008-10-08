@@ -78,7 +78,8 @@ class TigaseCSVExporter(object):
 class XEP0227Exporter(object):
     def __init__(self, fileName):
         self.fileName = fileName
-        self.element = ET.Element('{http://www.xmpp.org/extensions/xep-0227.html#ns}server-data')
+        self.element = ET.Element('server-data')
+        self.element.set('xmlns','http://www.xmpp.org/extensions/xep-0227.html#ns')
         self.hostElements = {}
         
     def elementForHost(self, host):
@@ -97,14 +98,14 @@ class XEP0227Exporter(object):
         userElement.set('password', user.password)
         rosterElement = ET.Element('{jabber:iq:roster}query')
         for rosterEntry in user.rosterEntries:
-            itemElement = ET.Element('item')
+            itemElement = ET.Element('{jabber:iq:roster}item')
             itemElement.set('jid', rosterEntry.jid)
             if rosterEntry.name:
                 itemElement.set('name', rosterEntry.name)
             itemElement.set('subscription', rosterEntry.subscription)
             for group in rosterEntry.groups:
                 if group is not None:
-                    groupElement = ET.Element('group')
+                    groupElement = ET.Element('{jabber:iq:roster}group')
                     groupElement.text = group
                     itemElement.append(groupElement)
             rosterElement.append(itemElement)

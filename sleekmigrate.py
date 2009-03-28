@@ -40,23 +40,23 @@ class Account(object):
         self.jid = jid
         self.password = password
         self.rosterEntries = []
-        
+
     def host(self):
         return self.splitJid()[1]
-        
+
     def user(self):
         return self.splitJid()[0]
-        
+
     def splitJid(self):
         return self.jid.split("@")
-        
+
     def getVcardElement(self):
         return self.vcardElement
-    
+
     def getPrivateElements(self):
         return self.privateElements
-    
-        
+
+
 class RosterEntry(object):
     def __init__(self, jid, groups, name, subscription):
         self.jid = jid
@@ -67,7 +67,7 @@ class RosterEntry(object):
 class TigaseCSVExporter(object):
     def __init__(self, fileName):
         self.out = file(fileName, "w")
-        
+
     def export(self, user):
         logging.info("Exporting account " + user.jid)
         w = csv.writer(self.out)
@@ -91,7 +91,7 @@ class XEP0227Exporter(object):
         self.element = ET.Element('server-data')
         self.element.set('xmlns','http://www.xmpp.org/extensions/xep-0227.html#ns')
         self.hostElements = {}
-        
+
     def elementForHost(self, host):
         hostElement = self.hostElements.get(host, None)
         if hostElement is None:
@@ -100,7 +100,7 @@ class XEP0227Exporter(object):
             self.hostElements[host] = hostElement
             self.element.append(hostElement)
         return hostElement
-        
+
     def export(self, user):
         logging.info("Exporting account " + user.jid)
         userElement = ET.Element('user')
@@ -127,9 +127,9 @@ class XEP0227Exporter(object):
             for privateSubElement in user.privateElements:
                 privateElement.append(privateSubElement)
             userElement.append(privateElement)
-        
+
         self.elementForHost(user.host()).append(userElement)
-        
+
     def finalise(self):
         ET.ElementTree(self.element).write(self.fileName)
 
@@ -146,17 +146,17 @@ class XMPPAccountExtractor(sleekxmpp.ClientXMPP):
         self.sessionOkay = False
         self.timeout = 30
         self.privatesToRequest = ("{exodus:prefs}exodus","{storage:bookmarks}storage", "{storage:rosternotes}storage", "{storage:metacontacts}storage")
-  
+
     def start(self, event):
         self.sessionOkay = True
-        self.getRoster()
-        
+        self.requestRoster()
+
         while not self.vcardDone or not self.rosterDone or not self.privatesDone:
             time.sleep(1)
         self.disconnect()
-  
 
-    
+
+
     def fetch_privates(self):
         self.account.privateElements = []
         for privateToRequest in self.privatesToRequest:
@@ -186,17 +186,17 @@ class XMPPAccountExtractor(sleekxmpp.ClientXMPP):
         self.vcardDone = True
         self.fetch_privates()
 
-      
+
 
     def receive_roster(self, event):
         for jid in event:
             self.account.rosterEntries.append(RosterEntry(jid, event[jid]['groups'], event[jid]['name'], event[jid]['subscription']))
         self.rosterDone = True
         self.fetch_vcard()
-    
+
     def export_okay(self):
         return self.sessionOkay
-        
+
     def getAccount(self):
         return self.account
 
@@ -237,7 +237,7 @@ if __name__ == '__main__':
     optp.add_option("-f","--user-file", dest="userFile", default="users.csv", help="name of CSV uname/password pairs file")
     optp.add_option("-o","--openfire-user-file", dest="openFireUserFile", default="", help="name of the OpenFire user export XML file")
     opts,args = optp.parse_args()
-  
+
     logging.basicConfig(level=opts.loglevel, format='%(levelname)-8s %(message)s')
 
     if len(opts.openFireUserFile) != 0 :
@@ -255,11 +255,11 @@ if __name__ == '__main__':
         exporter = TigaseCSVExporter('out.txt')
     else:
         logging.error("Unexpected Exporter type %s." % exporterType)
-  
+
     for auth in authDetails:
         extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])
         if opts.hostname is None:
-            extractor.connect() 
+            extractor.connect()
         else:
             extractor.connect((opts.hostname, 5222))
         extractor.process(threaded=False)

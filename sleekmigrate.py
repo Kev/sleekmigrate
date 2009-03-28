@@ -75,7 +75,7 @@ class TigaseCSVExporter(object):
                 rosterEntry.groups = ("")
             if rosterEntry.groups[0] is None:
                 rosterEntry.groups = ("")
-            if len(rosterEntry.groups > 1):
+            if len(rosterEntry.groups) > 1:
                 rosterEntry.groups = (rosterEntry.groups[0])
             for group in rosterEntry.groups:
                 self.out.write("%s,%s,%s,%s,%s,%s\n" % (user.jid, user.password, rosterEntry.jid, rosterEntry.name, rosterEntry.subscription, group))

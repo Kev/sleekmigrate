@@ -18,7 +18,7 @@
 """
 
 import logging
-import sleekxmpp.sleekxmpp as sleekxmpp
+import sleekxmpp
 from optparse import OptionParser
 from xml.etree import cElementTree as ET
 
@@ -123,9 +123,9 @@ class XEP0227Exporter(object):
     def finalise(self):
         ET.ElementTree(self.element).write(self.fileName)
 
-class XMPPAccountExtractor(sleekxmpp.xmppclient):
+class XMPPAccountExtractor(sleekxmpp.ClientXMPP):
     def __init__(self, jid, password, ssl=False, plugin_config = {}, plugin_whitelist=[]):
-        sleekxmpp.xmppclient.__init__(self, jid, password, ssl, plugin_config, plugin_whitelist)
+        sleekxmpp.ClientXMPP.__init__(self, jid, password, ssl, plugin_config, plugin_whitelist)
         logging.info("Logging in as %s" % self.jid)
         self.add_event_handler("session_start", self.start, threaded=True)
         self.add_event_handler("roster_update", self.receive_roster)
@@ -139,7 +139,7 @@ class XMPPAccountExtractor(sleekxmpp.xmppclient):
 	
     def start(self, event):
         self.sessionOkay = True
-        self.requestRoster()
+        self.getRoster()
         
         while not self.vcardDone or not self.rosterDone or not self.privatesDone:
             time.sleep(1)
@@ -232,9 +232,7 @@ if __name__ == '__main__':
             extractor.connect() 
         else:
             extractor.connect((opts.hostname, 5222))
-        extractor.process()
-        while extractor.connected:
-            time.sleep(1)
+        extractor.process(threaded=False)
         if extractor.export_okay():
             exporter.export(extractor.getAccount())
     exporter.finalise()

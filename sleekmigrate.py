@@ -20,12 +20,20 @@
 import logging
 import sleekxmpp
 from optparse import OptionParser
+import xml.dom.minidom
 from xml.etree import cElementTree as ET
 
 import os
 import time
 import csv
 import codecs
+
+def getText(node):
+  rc = ""
+  for node in node.childNodes:
+    if node.nodeType in [node.TEXT_NODE, node.CDATA_SECTION_NODE]:
+      rc += node.data
+  return rc
 
 class Account(object):
     def __init__(self, jid, password):
@@ -136,7 +144,7 @@ class XMPPAccountExtractor(sleekxmpp.ClientXMPP):
         self.sessionOkay = False
         self.timeout = 30
         self.privatesToRequest = ("{exodus:prefs}exodus","{storage:bookmarks}storage", "{storage:rosternotes}storage", "{storage:metacontacts}storage")
-	
+  
     def start(self, event):
         self.sessionOkay = True
         self.getRoster()
@@ -144,9 +152,9 @@ class XMPPAccountExtractor(sleekxmpp.ClientXMPP):
         while not self.vcardDone or not self.rosterDone or not self.privatesDone:
             time.sleep(1)
         self.disconnect()
-	
+  
 
-		
+    
     def fetch_privates(self):
         self.account.privateElements = []
         for privateToRequest in self.privatesToRequest:
@@ -176,7 +184,7 @@ class XMPPAccountExtractor(sleekxmpp.ClientXMPP):
         self.vcardDone = True
         self.fetch_privates()
 
-			
+      
 
     def receive_roster(self, event):
         for jid in event:
@@ -189,6 +197,21 @@ class XMPPAccountExtractor(sleekxmpp.ClientXMPP):
         
     def getAccount(self):
         return self.account
+
+def authDetailsFromOpenFireFile(filename, domain):
+    """ Return a list of auth dicts
+    """
+    file = open(filename)
+    document = xml.dom.minidom.parseString(file.read())
+    file.close()
+    users = document.getElementsByTagName("User")
+
+    auths = []
+    for user in users :
+      auths.append({
+        'jid': getText(user.getElementsByTagName("Username")[0]) + "@" + domain, 
+        'pass': getText(user.getElementsByTagName("Password")[0])})
+    return auths
 
 def authDetailsFromFile(filename):
     """ Return a list of auth dicts
@@ -210,12 +233,17 @@ if __name__ == '__main__':
     optp.add_option('-s','--server', help='domain to export', dest='hostname', default=None)
     #optp.add_option("-c","--config", dest="configfile", default="config.xml", help="set config file to use")
     optp.add_option("-f","--user-file", dest="userFile", default="users.csv", help="name of CSV uname/password pairs file")
+    optp.add_option("-o","--openfire-user-file", dest="openFireUserFile", default="", help="name of the OpenFire user export XML file")
     opts,args = optp.parse_args()
-	
+  
     logging.basicConfig(level=opts.loglevel, format='%(levelname)-8s %(message)s')
 
-    logging.info("Loading user file: %s" % opts.userFile)
-    authDetails = authDetailsFromFile(opts.userFile)
+    if len(opts.openFireUserFile) != 0 :
+      logging.info("Loading OpenFire user export file: %s" % opts.openFireUserFile)
+      authDetails = authDetailsFromOpenFireFile(opts.openFireUserFile, opts.hostname)
+    else :
+      logging.info("Loading user file: %s" % opts.userFile)
+      authDetails = authDetailsFromFile(opts.userFile)
 
     plugin_config = {}
     exporterType = opts.exportFormatter
@@ -225,7 +253,7 @@ if __name__ == '__main__':
         exporter = TigaseCSVExporter('out.txt')
     else:
         logging.error("Unexpected Exporter type %s." % exporterType)
-	
+  
     for auth in authDetails:
         extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])
         if opts.hostname is None:

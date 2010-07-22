@@ -149,7 +149,7 @@ class XMPPAccountExtractor(sleekxmpp.ClientXMPP):
 
     def start(self, event):
         self.sessionOkay = True
-        self.requestRoster()
+        self.getRoster()
 
         while not self.vcardDone or not self.rosterDone or not self.privatesDone:
             time.sleep(1)

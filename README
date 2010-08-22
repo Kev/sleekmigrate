@@ -1,2 +1,8 @@
-SleekMigrate requires SleekXMPP. In the same folder as SleekMigrate, run 
+SleekMigrate requires SleekXMPP. 
+
+In the same folder as SleekMigrate, run 
 	git submodule update --init SleekXMPP
+and then either install it (cd SleekXMPP && python setup.py install) or (easier) 
+	ln -s SleekXMPP/sleekxmpp sleekxmpp
+
+Note that SleekXMPP itself has some dependencies, depending on your server config, and they should be discoverable from the SleekXMPP home (http://github.com/fritzy/SleekXMPP).

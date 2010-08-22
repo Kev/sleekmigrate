@@ -239,9 +239,17 @@ def authDetailsFromJabberdUserDir(jabberdUserDir):
     logging.error("For example, provide /var/lib/jabber/ not /var/lib/jabber/yourdomain.com/.")
     sys.exit(1)
 
-  # And the directory had better contain directories
-  # FIXME
-  return []
+  users = []
+  for user_xml_file in glob.glob(os.path.join(jabberdUserDir, '*/*.xml')):
+    base, domain, user_part = user_xml_file.rsplit('/', 2)
+    username = user_part.rsplit('.xml', 1)[0]
+
+    parsed = ET.parse(user_xml_file)
+    password = parsed.findtext('//{jabber:iq:auth}password')
+    logging.debug('Found user %s in domain %s with password %s' % (
+      username, domain, password))
+
+  return users
 
 class JabberUserDirAccountExtractor(object):
   def connect(self):

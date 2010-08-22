@@ -234,6 +234,7 @@ if __name__ == '__main__':
     optp.add_option("-e","--export-formatter", dest="exportFormatter",  type='choice', default="xep0227", choices=("xep0227","tigase"), help="formatter for exported data")
     optp.add_option('-s','--server', help='domain to export', dest='hostname', default=None)
     #optp.add_option("-c","--config", dest="configfile", default="config.xml", help="set config file to use")
+    optp.add_option("-j","--jabberd-user-dir", dest="jabberdUserDir", default=None, help="path to a {domain}/{user}.xml files from jabberd14")
     optp.add_option("-f","--user-file", dest="userFile", default="users.csv", help="name of CSV uname/password pairs file")
     optp.add_option("-o","--openfire-user-file", dest="openFireUserFile", default="", help="name of the OpenFire user export XML file")
     opts,args = optp.parse_args()

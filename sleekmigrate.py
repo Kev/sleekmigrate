@@ -245,7 +245,13 @@ def authDetailsFromJabberdUserDir(jabberdUserDir):
     username = user_part.rsplit('.xml', 1)[0]
 
     parsed = ET.parse(user_xml_file)
-    password = parsed.findtext('//{jabber:iq:auth}password')
+    try:
+      password = parsed.find('//{jabber:iq:auth}password').text
+    except AttributeError:
+      logging.error("It seems that %s is not a valid jabberd14 XML file" % 
+                    user_xml_file)
+      logging.error("Skipping it...")
+      continue
     users.append({'jid': username + '@' + domain,
                   'pass': password})
 
@@ -255,11 +261,49 @@ def authDetailsFromJabberdUserDir(jabberdUserDir):
   return users
 
 class JabberUserDirAccountExtractor(object):
-  def connect(self):
-    pass # no-op
+  def __init__(self, base_path, user_password_list, exporter):
+    self.base_path = base_path
+    self.user_password_list = user_password_list
+    self.exporter = exporter
 
-  def export(self, account):
-    pass
+  def process(self):
+    # For each user:
+    for jid_and_pass in self.user_password_list:
+      # Create the Account instance
+      jid = jid_and_pass['jid']
+      password = jid_and_pass['pass']
+      account = Account(jid, password)
+
+      # Find the XML file
+      user_xml_file = os.path.join(self.base_path, account.host(),
+                                   account.user() + '.xml')
+      parsed = ET.parse(user_xml_file)
+
+      # Populate the account object's roster entries
+      for roster_xml_item in parsed.findall('//{jabber:iq:roster}item'):
+        jid = roster_xml_item.get('jid')
+        name = roster_xml_item.get('name')
+        subscription = roster_xml_item.get('subscription')
+        group_names = []
+        # get group names
+        for group in roster_xml_item.findall('{jabber:iq:roster}group'):
+          group_names.append(group.text)
+
+        # toss it all into a RosterEntry...
+        roster_entry = RosterEntry(jid, group_names, name, subscription)
+        # ...and append it into the Account.
+        account.rosterEntries.append(roster_entry)
+
+      # Now, can we fill in the user's vcard too?
+      vcardElement = parsed.find('{vcard-temp}vCard')
+      account.vcardElement = vcardElement
+
+      # set the privateElements, if there are any
+      account.privateElements = parsed.find('{jabber:iq:private}query') or []
+
+      # That's all there is to do for this Account object.
+      # We can now pass it to the Exporter.
+      self.exporter.export(account)
 
 if __name__ == '__main__':
     #parse command line arguements
@@ -303,13 +347,12 @@ if __name__ == '__main__':
     ### If we are in Jabber mode, do not speak XMPP over the network. Simply look in the directory of
     ### provided XML files, and create an export.
     if opts.jabberdUserDir:
-      status = 0 # Write this, sometime.
+      extractor = JabberUserDirAccountExtractor(opts.jabberdUserDir, authDetails, exporter)
+      extractor.process()
 
-    for auth in authDetails:
-        if opts.jabberdUserDir:
-          extractor = JabberUserDirAccountExtractor()
-        else:
-          extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])
+    else:
+      for auth in authDetails:
+        extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])
         if opts.hostname is None:
             extractor.connect()
         else:

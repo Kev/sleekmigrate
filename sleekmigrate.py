@@ -24,9 +24,11 @@ import xml.dom.minidom
 from xml.etree import cElementTree as ET
 
 import os
+import sys
 import time
 import csv
 import codecs
+import glob
 
 def getText(node):
   rc = ""
@@ -225,6 +227,29 @@ def authDetailsFromFile(filename):
         auths.append({'jid':row[0],'pass':row[1]})
     return auths
 
+def authDetailsFromJabberdUserDir(jabberdUserDir):
+  ## First, sanity-check the jabberdUserDir
+  # We expect its structure to look like:
+  # jabberdUserDir/{domain}/{user}.xml
+
+  # If the user passed us something with the {domain} component in it,
+  # we should abort now and log an error message.
+  if glob.glob(os.path.join(jabberdUserDir, '*.xml')):
+    logging.error("The jabberd user data directory you passed in contains XML files in it. Instead, we expect a directory that contains files in the following format: {domain}/{user}.xml.")
+    logging.error("For example, provide /var/lib/jabber/ not /var/lib/jabber/yourdomain.com/.")
+    sys.exit(1)
+
+  # And the directory had better contain directories
+  # FIXME
+  return []
+
+class JabberUserDirAccountExtractor(object):
+  def connect(self):
+    pass # no-op
+
+  def export(self, account):
+    pass
+
 if __name__ == '__main__':
     #parse command line arguements
     optp = OptionParser()
@@ -255,14 +280,25 @@ if __name__ == '__main__':
     if len(opts.openFireUserFile) != 0 :
       logging.info("Loading OpenFire user export file: %s" % opts.openFireUserFile)
       authDetails = authDetailsFromOpenFireFile(opts.openFireUserFile, opts.hostname)
+    elif opts.jabberdUserDir:
+      logging.info("Loading user list from jabberd14 XML files at: %s" % opts.jabberdUserDir)
+      authDetails = authDetailsFromJabberdUserDir(opts.jabberdUserDir)
     else :
       logging.info("Loading user file: %s" % opts.userFile)
       authDetails = authDetailsFromFile(opts.userFile)
 
     plugin_config = {}
 
+    ### If we are in Jabber mode, do not speak XMPP over the network. Simply look in the directory of
+    ### provided XML files, and create an export.
+    if opts.jabberdUserDir:
+      status = 0 # Write this, sometime.
+
     for auth in authDetails:
-        extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])
+        if opts.jabberdUserDir:
+          extractor = JabberUserDirAccountExtractor()
+        else:
+          extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])
         if opts.hostname is None:
             extractor.connect()
         else:

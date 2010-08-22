@@ -240,6 +240,17 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=opts.loglevel, format='%(levelname)-8s %(message)s')
 
+    ### Exporter configuration is first because it sets up function state without
+    ### having side-effects that could fail (like reading files from disk or going
+    ### to the network).
+    exporterType = opts.exportFormatter
+    if exporterType == "xep0227":
+        exporter =  XEP0227Exporter('227.xml')
+    elif exporterType == "tigase":
+        exporter = TigaseCSVExporter('out.txt')
+    else:
+        logging.error("Unexpected Exporter type %s." % exporterType)
+
     if len(opts.openFireUserFile) != 0 :
       logging.info("Loading OpenFire user export file: %s" % opts.openFireUserFile)
       authDetails = authDetailsFromOpenFireFile(opts.openFireUserFile, opts.hostname)
@@ -248,13 +259,6 @@ if __name__ == '__main__':
       authDetails = authDetailsFromFile(opts.userFile)
 
     plugin_config = {}
-    exporterType = opts.exportFormatter
-    if exporterType == "xep0227":
-        exporter =  XEP0227Exporter('227.xml')
-    elif exporterType == "tigase":
-        exporter = TigaseCSVExporter('out.txt')
-    else:
-        logging.error("Unexpected Exporter type %s." % exporterType)
 
     for auth in authDetails:
         extractor = XMPPAccountExtractor(auth['jid'], auth['pass'], plugin_config=plugin_config, plugin_whitelist=[])

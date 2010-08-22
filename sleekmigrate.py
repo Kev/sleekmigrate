@@ -246,8 +246,11 @@ def authDetailsFromJabberdUserDir(jabberdUserDir):
 
     parsed = ET.parse(user_xml_file)
     password = parsed.findtext('//{jabber:iq:auth}password')
-    logging.debug('Found user %s in domain %s with password %s' % (
-      username, domain, password))
+    users.append({'jid': username + '@' + domain,
+                  'pass': password})
+
+  logging.debug("Found this many users in the jabberd14 directory: %d" %
+                len(users))
 
   return users
 
